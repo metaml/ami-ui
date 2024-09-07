@@ -1,0 +1,19 @@
+{
+  "name": "ami-ui",
+  "version": "0.1.0",
+  "description": "ami ui",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Michael Lee",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "purescript": "^0.15.15",
+    "spago": "^0.21.0"
+  },
+  "devDependencies": {}
+}

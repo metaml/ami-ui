@@ -1,3 +1,4 @@
+index.js
 /bower_components/
 /node_modules/
 /.pulp-cache/
@@ -8,3 +9,4 @@
 /.purs*
 /.psa*
 /.spago
+/npm/

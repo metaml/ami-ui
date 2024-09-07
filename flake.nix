@@ -41,13 +41,12 @@
             jq
             nixpkgs-fmt
             nodejs_22
-            purescript
-            spago
           ];
 
           shellHook = ''
             export LANG=en_US.UTF-8
-            # awscli2 and openai have a dependency conflict 
+            export PATH=$PATH:$(pwd)/node_modules/.bin
+            # awscli2 and openai have a dependency conflict
             alias aws='PYTHONPATH= aws'
             export PS1="ami-ui|$PS1"
           '';
