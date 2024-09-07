@@ -49,6 +49,7 @@
             # awscli2 and openai have a dependency conflict
             alias aws='PYTHONPATH= aws'
             export PS1="ami-ui|$PS1"
+            alias b='make build'
           '';
         };
         devShell = self.devShells.${system}.default;        
