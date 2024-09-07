@@ -48,8 +48,9 @@
             export PATH=$PATH:$(pwd)/node_modules/.bin
             # awscli2 and openai have a dependency conflict
             alias aws='PYTHONPATH= aws'
-            export PS1="ami-ui|$PS1"
             alias b='make build'
+            alias s=spago
+            export PS1="ami-ui|$PS1"
           '';
         };
         devShell = self.devShells.${system}.default;        

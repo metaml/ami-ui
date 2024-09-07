@@ -4,6 +4,7 @@ index.js
 /.pulp-cache/
 /output/
 /generated-docs/
+/.DS_S*
 /.psc-package/
 /.psc*
 /.purs*
