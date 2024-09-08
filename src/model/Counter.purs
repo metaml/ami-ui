@@ -4,7 +4,6 @@ import Prelude
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Control.Monad as M
 
 type State = Int
 data Action = Increment | Decrement
@@ -12,7 +11,7 @@ data Action = Increment | Decrement
 component :: forall query input output m. H.Component query input output m
 component = H.mkComponent { initialState
                           , render
-                          , eval: H.mkEval H.defaultEval { handleAction = handleAction }
+                          , eval: H.mkEval H.defaultEval { handleAction = action }
                           }
 
 initialState :: forall input. input -> State
@@ -24,10 +23,9 @@ render state = HH.div_ [ HH.button [ HE.onClick \_ -> Decrement ] [ HH.text "-" 
                        , HH.button [ HE.onClick \_ -> Increment ] [ HH.text "+" ]
                        ]
 
-handleAction :: forall output m. Action -> H.HalogenM State Action () output m Unit
-handleAction = case _ of
+action :: forall output m. Action -> H.HalogenM State Action () output m Unit
+action = case _ of
   Decrement ->
     H.modify_ \state -> state - 1
   Increment ->
     H.modify_ \state -> state + 1
-

@@ -21,8 +21,8 @@ bundle: ## bundle
 repl: ## repl
 	spago repl
 
-upgrade: ## upgrade packages
-	spago upgrade-set
+update: ## update packages
+	spago install
 
 clean: ## clean
 	find . -name \*~ | xargs rm -f
@@ -35,8 +35,6 @@ dev: ## nix develop
 	nix develop
 
 clobber: clean ## clobber dev env
-
-dev: ## nix develop
 
 help: ## help
 	-@grep --extended-regexp '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
