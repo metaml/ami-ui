@@ -1,6 +1,8 @@
 { name = "ami-u"
 , dependencies = [ "aff"
+                 , "argonaut"
     	       	 , "console"
+                 , "const"
                  , "effect"
                  , "either"
                  , "foldable-traversable"

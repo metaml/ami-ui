@@ -6,10 +6,10 @@ AWS := PYTHONPATH= aws
 run: ## run
 	spago run
 
-buildc: ## build 
+buildc: ## build
 	spago build --watch
 
-build: ## build 
+build: ## build
 	spago build
 
 test: ## test
@@ -29,7 +29,7 @@ clean: ## clean
 	rm -rf output/*
 
 clobber: clean ## clobber
-	rm -rf node_modules/*	
+	rm -rf node_modules/*
 
 dev: ## nix develop
 	nix develop
@@ -47,4 +47,3 @@ init: install ## init project
 
 install: ## install npm pagkes
 	for i in npm spago; do echo $$i; npm install $$i; done
-

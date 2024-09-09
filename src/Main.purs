@@ -17,10 +17,9 @@ import Web.DOM.ParentNode (QuerySelector(..))
 
 main :: Effect Unit
 main = HA.runHalogenAff do
-  HA.awaitBody >>= runStorybook
-    { stories
-    , logo: Just (HH.text "ami")
-    }
+  HA.awaitBody >>= runStorybook { stories
+                                , logo: Just (HH.text "ami")
+                                }
 
 stories :: Stories Aff
 stories = Object.fromFoldable [ home
@@ -35,11 +34,13 @@ stories = Object.fromFoldable [ home
                                     , render: \_ -> render, eval: H.mkEval H.defaultEval
                                     }
       Tuple "" $ proxy component
-    chat = Tuple "chat" $ proxy $ mkComponent "chat" "" Chat.form
+    chat = do
+      Tuple "chat" $ proxy $ mkComponent "ami" "" Chat.form
 
 type Title = String
 type Description = String
 
+-- @todo: should this be moved to Chat?
 mkComponent :: forall q i o result . Show result
             => Title
             -> Description
@@ -55,6 +56,6 @@ mkComponent title descr formComponent = H.mkComponent
                                    , HH.p_ [ HH.text descr ]
                                    , HH.slot (Proxy :: Proxy "inner") unit formComponent unit identity
                                    , case state.result of
-                                       Nothing -> HH.text ("no state: " <> show state)
+                                       Nothing -> HH.text ""
                                        Just result -> HH.code_ [ HH.text $ show result ]
                                    ]
