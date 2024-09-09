@@ -41,12 +41,6 @@ form = F.formless { liftAction: Eval } mempty $ H.mkComponent { initialState: id
                                                                   }
                                                               }
 
-                -- [ H.pre
-                --     [ P.class_ $ H.className "chatbox"
-                --     , P.id_ "chatbox" ]
-                --     [ H.text $ unlines $ map _.content st.messages ]
-                -- ]
-
 render :: FormContext -> H.ComponentHTML Action () Aff
 render { formActions, fields, actions } = do
   HH.form [ HE.onSubmit formActions.handleSubmit ]
