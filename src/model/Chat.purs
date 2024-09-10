@@ -1,7 +1,7 @@
 module Chat where
 
 import Prelude
-import Data.Array as Arr
+import Data.Array
 import Data.Argonaut as Argo
 import Data.Const
 import Data.Either (Either(..))
@@ -12,7 +12,8 @@ import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.Events as HE
+import Halogen.HTML.Elements as HE
+import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
@@ -72,21 +73,15 @@ query = do
 
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, messages } = do
-  HH.form [ HE.onSubmit formActions.handleSubmit ]
+  let lines = intersperse HH.br_ $ map (\{ name, message } -> HH.text (name <> ": " <> message)) messages
+  HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
-                    , HH.pre [ HP.class_ $ HH.ClassName "table", HP.id "table" ]
-                             case fields.message.result of
-                               Nothing          -> []
-                               Just (Left err)  -> [ HH.small_ [ HH.text err ] ]
-                               Just (Right msg) -> [ HH.text msg
-                                                   , HH.br_
-                                                   , HH.text ("head=<" <> show (Arr.last messages) <> ">")
-                                                   ]
+                    , HH.pre_ lines
                     ]
           ,  HH.div_ [ HH.label_ []
                      , HH.input [ HP.type_ HP.InputText
-                                , HE.onValueInput actions.message.handleChange
-                                , HE.onBlur actions.message.handleBlur
+                                , HEV.onValueInput actions.message.handleChange
+                                , HEV.onBlur actions.message.handleBlur
                                 , case fields.message.result of
                                     Nothing        -> HP.placeholder "message"
                                     Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
@@ -95,8 +90,8 @@ render { context: { formActions, fields, actions}, messages } = do
                      ]
           ,  HH.div_ [ HH.label_ []
                      , HH.input [ HP.type_ HP.InputText
-                                , HE.onValueInput actions.name.handleChange
-                                , HE.onBlur actions.name.handleBlur
+                                , HEV.onValueInput actions.name.handleChange
+                                , HEV.onBlur actions.name.handleBlur
                                 , case fields.name.result of
                                     Nothing        -> HP.placeholder "name"
                                     Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
@@ -106,4 +101,7 @@ render { context: { formActions, fields, actions}, messages } = do
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
 
--- toTrs :: Array Message -> Array
+-- toTr :: Message -> Array HH.HTML
+-- toTr { name, message } = HE.tr_ [ HE.td_ [HH.text name]
+--                                 , HE.td_ [HH.text message]
+--                                 ]
