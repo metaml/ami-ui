@@ -6,7 +6,6 @@
                  , "const"
                  , "effect"
                  , "either"
-                 , "foldable-traversable"
                  , "foreign-object"
                  , "halogen"
                  , "halogen-formless"
@@ -14,7 +13,6 @@
                  , "maybe"
                  , "prelude"
                  , "tuples"
-                 , "web-dom"
                  ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

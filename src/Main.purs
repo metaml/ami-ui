@@ -1,11 +1,10 @@
 module Main where
 
 import Prelude
-import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Aff (Aff, launchAff_)
+import Effect.Aff (Aff)
 import Chat as Chat
 import Foreign.Object as Object
 import Halogen as H
@@ -13,7 +12,6 @@ import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.Storybook (Stories, proxy, runStorybook)
 import Type.Proxy (Proxy(..))
-import Web.DOM.ParentNode (QuerySelector(..))
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -35,7 +33,7 @@ stories = Object.fromFoldable [ home
                                     }
       Tuple "" $ proxy component
     chat = do
-      Tuple "chat" $ proxy $ mkComponent "ami" "" Chat.form
+      Tuple "chat" $ proxy $ mkComponent "chat" "" Chat.form
 
 type Title = String
 type Description = String

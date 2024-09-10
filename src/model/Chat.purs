@@ -78,26 +78,26 @@ render { context: { formActions, fields, actions}, messages } = do
           [ HH.div_ [ HH.label_ []
                     , HH.pre_ lines
                     ]
-          ,  HH.div_ [ HH.label_ []
-                     , HH.input [ HP.type_ HP.InputText
-                                , HEV.onValueInput actions.message.handleChange
-                                , HEV.onBlur actions.message.handleBlur
-                                , case fields.message.result of
-                                    Nothing        -> HP.placeholder "message"
-                                    Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
-                                    Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
-                                ]
-                     ]
-          ,  HH.div_ [ HH.label_ []
-                     , HH.input [ HP.type_ HP.InputText
-                                , HEV.onValueInput actions.name.handleChange
-                                , HEV.onBlur actions.name.handleBlur
-                                , case fields.name.result of
-                                    Nothing        -> HP.placeholder "name"
-                                    Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
-                                    Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
-                                ]
-                     ]
+          , HH.div_ [ HH.label_ []
+                    , HH.input [ HP.type_ HP.InputText
+                               , HEV.onValueInput actions.message.handleChange
+                               , HEV.onBlur actions.message.handleBlur
+                               , case fields.message.result of
+                                   Nothing        -> HP.placeholder "message"
+                                   Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
+                                   Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
+                               ]
+                    ]
+          , HH.div_ [ HH.label_ []
+                    , HH.input [ HP.type_ HP.InputText
+                               , HEV.onValueInput actions.name.handleChange
+                               , HEV.onBlur actions.name.handleBlur
+                               , case fields.name.result of
+                                   Nothing        -> HP.placeholder "name"
+                                   Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
+                                   Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
+                               ]
+                    ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
 
