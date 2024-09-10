@@ -1,5 +1,6 @@
 { name = "ami-u"
 , dependencies = [ "aff"
+                 , "arrays"
                  , "argonaut"
     	       	 , "console"
                  , "const"
