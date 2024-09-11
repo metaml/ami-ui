@@ -58,11 +58,18 @@ query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
         state <- H.get
+        H.modify_ _ { messages = state.messages <> [ { message: fields.message
+                                                     , name: fields.name
+                                                     }
+                                                   ]
+                    }
+
         let msg :: A.Message
             msg = { content: fields.message, role: "user" }
             req :: A.Request
             req = { messages: [ msg ], stream: false }
         { messages, friend } :: A.Response <- H.liftAff $ A.talk req
+
         let msg' = head messages
         case msg' of
           Nothing  -> do
@@ -70,10 +77,10 @@ query = do
             pure unit
           Just amiMsg -> do
             let msg = { message: amiMsg.content, name: friend } :: Message
-            H.liftEffect $ logShow amiMsg
-            H.liftEffect $ logShow state.messages
             H.liftEffect $ logShow msg
+            state <- H.get
             H.modify_ _ { messages = state.messages <> [msg] }
+
       validation :: { | Form F.FieldValidation }
       validation = { name: case _ of
                        ""  -> Left "a name is required"
