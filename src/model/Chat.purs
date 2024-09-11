@@ -1,18 +1,18 @@
 module Chat where
 
 import Prelude
-import Data.Array
-import Data.Argonaut as Argo
-import Data.Const
+import Ami as A
+import Data.Array (head, intersperse)
+import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Effect.Aff (Aff)
 import Effect.Class (class MonadEffect)
+import Effect.Aff (Aff)
+import Effect.Aff.Class (class MonadAff)
 import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.Elements as HE
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 
@@ -30,9 +30,9 @@ type State = { context :: FormContext, messages :: Array Message }
 data Action = Receive FormContext | Eval FormlessAction
 type FormInputs = { | Form F.FieldInput }
 
-
--- type Query = Const Void
-type Input = Unit
+type Query :: forall k. k -> Type
+type Query = Const Void -- forall k. k -> Type
+type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
 form :: forall query. H.Component query Input Output Aff
@@ -53,20 +53,33 @@ action = case _ of
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
 
-query :: forall a m. MonadEffect m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
+query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
         state <- H.get
-        H.modify_ _ { messages = state.messages
-                                 <> [{ message: fields.message, name: fields.name } :: Message]
-                    }
+        let msg :: A.Message
+            msg = { content: fields.message, role: "user" }
+            req :: A.Request
+            req = { messages: [ msg ], stream: false }
+        { messages, friend } :: A.Response <- H.liftAff $ A.talk req
+        let msg' = head messages
+        case msg' of
+          Nothing  -> do
+            H.liftEffect $ log "Nothing"
+            pure unit
+          Just amiMsg -> do
+            let msg = { message: amiMsg.content, name: friend } :: Message
+            H.liftEffect $ logShow amiMsg
+            H.liftEffect $ logShow state.messages
+            H.liftEffect $ logShow msg
+            H.modify_ _ { messages = state.messages <> [msg] }
       validation :: { | Form F.FieldValidation }
       validation = { name: case _ of
-                       "" -> Left "a name is required"
+                       ""  -> Left "a name is required"
                        nom -> Right nom
                    , message: case _ of
-                       ""  -> Left "a message is required!"
+                       ""  -> Left "a message is required"
                        msg -> Right msg
                    }
   F.handleSubmitValidate onSubmit F.validate validation
@@ -100,8 +113,3 @@ render { context: { formActions, fields, actions}, messages } = do
                     ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
-
--- toTr :: Message -> Array HH.HTML
--- toTr { name, message } = HE.tr_ [ HE.td_ [HH.text name]
---                                 , HE.td_ [HH.text message]
---                                 ]
