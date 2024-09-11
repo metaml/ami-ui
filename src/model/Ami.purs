@@ -20,11 +20,6 @@ type Message  = { content :: String, role :: String }
 type Request  = { messages :: Array Message, stream :: Boolean }
 type Response = { messages :: Array Message, friend :: String }
 
--- { "messages":[{"content":"I’m an AI assistant designed to provide information, answer questions, and offer support on awide range of topics. I aim to be helpful, empathetic, and informative. How can I assist you today?"
--- , "role":"assistant"}]
--- , "friend":"Courtney"
--- }
-
 talk :: Request -> Aff Response
 talk req = do
   let url = "http://localhost:8000/talk"
