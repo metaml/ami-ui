@@ -15,6 +15,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
+import Html as Html
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( name    :: f String String String
@@ -34,6 +35,9 @@ type Query :: forall k. k -> Type
 type Query = Const Void -- forall k. k -> Type
 type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
+
+component :: _ _ _ Aff
+component = Html.mkComponent "chat" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } mempty

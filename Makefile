@@ -25,7 +25,7 @@ update: ## update packages
 	spago install
 
 install-app: ## copy index.[html, js] to ami/static
-	cp index.* ../ami/static/.
+	cp -p index.* ../ami/static/.
 
 clean: ## clean
 	find . -name \*~ | xargs rm -f
