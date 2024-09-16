@@ -1,7 +1,7 @@
-module Chat where
+module Prompt where
 
 import Prelude
-import Ami as A
+-- import Ami as A
 import Data.Array (head)
 import Data.Const (Const)
 import Data.Either (Either(..))
@@ -19,8 +19,8 @@ import Html as Html
 import Web.HTML.Common (ClassName(..))
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( name    :: f String String String
-              , message :: f String String String
+type Form f = ( member    :: f String String String
+              , prompt :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
@@ -34,15 +34,15 @@ type Query = Const Void -- forall k. k -> Type
 type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
-type Message = { | Form F.FieldOutput }
-type State = { context :: FormContext, messages :: Array Message }
+type Prompt = { | Form F.FieldOutput }
+type State = { context :: FormContext, prompts :: Array Prompt }
 
 component :: _ _ _ Aff
-component = Html.mkComponent "chat" "" form
+component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } mempty
-       $ H.mkComponent { initialState: \ctx -> { context: ctx, messages: [] }
+       $ H.mkComponent { initialState: \ctx -> { context: ctx, prompts: [] }
                        , render
                        , eval: H.mkEval $ H.defaultEval
                          { receive = Just <<< Receive
@@ -63,67 +63,45 @@ query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
         state' <- H.get
-        H.modify_ _ { messages = state'.messages <> [ { message: fields.message
-                                                      , name: fields.name
-                                                      }
-                                                    ]
+        H.modify_ _ { prompts = state'.prompts <> [ { prompt: fields.prompt
+                                                    , member: fields.member
+                                                    }
+                                                  ]
                     }
 
-        let msg :: A.Message
-            msg = { content: fields.message, role: fields.name }
-            req :: A.Request
-            req = { messages: [ msg ], stream: false }
-        H.liftEffect $ logShow fields
-        H.liftEffect $ logShow msg
-        { messages, friend } :: A.Response <- H.liftAff $ A.talk req
-
-        let msg' = head messages
-        case msg' of
-          Nothing  -> do
-            H.liftEffect $ log "Nothing"
-            pure unit
-          Just amiMsg -> do
-            let rec = { message: amiMsg.content, name: friend } :: Message
-            H.liftEffect $ logShow rec
-            state <- H.get
-            H.modify_ _ { messages = state.messages <> [rec] }
-
       validation :: { | Form F.FieldValidation }
-      validation = { name: case _ of
-                       ""  -> Left "a name is required"
+      validation = { member: case _ of
+                       ""  -> Left "a member is required"
                        nom -> Right nom
-                   , message: case _ of
-                       ""  -> Left "a message is required"
+                   , prompt: case _ of
+                       ""  -> Left "a prompt is required"
                        msg -> Right msg
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
 render :: State -> H.ComponentHTML Action () Aff
-render { context: { formActions, fields, actions}, messages } = do
-  -- let lines = intersperse HH.br_ $ map (\{ name, message } -> HH.text (name <> ": " <> message)) messages
-  let texts = (\{ name, message } -> HH.text (name <> ": " <> message)) <$> messages
+render { context: { formActions, fields, actions}, prompts } = do
+  -- let lines = intersperse HH.br_ $ map (\{ member, prompt } -> HH.text (member <> ": " <> prompt)) prompts
+  let texts = (\{ member, prompt } -> HH.text (member <> ": " <> prompt)) <$> prompts
       container = HP.class_ (ClassName "container")
       articles = (\text -> HH.article [ container ] [ text ]) <$> texts
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
-                    , HH.ul_ articles
-                    ]
-          , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
-                               , HEV.onValueInput actions.message.handleChange
-                               , HEV.onBlur actions.message.handleBlur
-                               , case fields.message.result of
-                                   Nothing        -> HP.placeholder "message"
+                               , HEV.onValueInput actions.prompt.handleChange
+                               , HEV.onBlur actions.prompt.handleBlur
+                               , case fields.prompt.result of
+                                   Nothing        -> HP.placeholder "prompt"
                                    Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
                                    Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
                                ]
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
-                               , HEV.onValueInput actions.name.handleChange
-                               , HEV.onBlur actions.name.handleBlur
-                               , case fields.name.result of
-                                   Nothing        -> HP.placeholder "name"
+                               , HEV.onValueInput actions.member.handleChange
+                               , HEV.onBlur actions.member.handleBlur
+                               , case fields.member.result of
+                                   Nothing        -> HP.placeholder "member"
                                    Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
                                    Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
                                ]

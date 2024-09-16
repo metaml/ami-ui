@@ -7,6 +7,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Chat as Chat
 import Home as Home
+import Prompt as Prompt
 import Foreign.Object as Object
 import Halogen.Aff as HA
 import Halogen.HTML as HH
@@ -19,6 +20,7 @@ main = HA.runHalogenAff do
                                 , logo: Just (HH.text "ami")
                                 }
   where stories :: Stories Aff
-        stories = Object.fromFoldable [ Tuple ""     $ proxy Home.component
-                                      , Tuple "chat" $ proxy Chat.component
+        stories = Object.fromFoldable [ Tuple ""       $ proxy Home.component
+                                      , Tuple "chat"   $ proxy Chat.component
+                                      , Tuple "prompt" $ proxy Prompt.component
                                       ]
