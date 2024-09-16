@@ -19,8 +19,9 @@ import Html as Html
 import Web.HTML.Common (ClassName(..))
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( member    :: f String String String
+type Form f = ( member :: f String String String
               , prompt :: f String String String
+              , friend :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
@@ -65,6 +66,7 @@ query = do
         state' <- H.get
         H.modify_ _ { prompts = state'.prompts <> [ { prompt: fields.prompt
                                                     , member: fields.member
+                                                    , friend: fields.friend
                                                     }
                                                   ]
                     }
@@ -72,10 +74,13 @@ query = do
       validation :: { | Form F.FieldValidation }
       validation = { member: case _ of
                        ""  -> Left "a member is required"
-                       nom -> Right nom
+                       mb -> Right mb
                    , prompt: case _ of
                        ""  -> Left "a prompt is required"
-                       msg -> Right msg
+                       pr -> Right pr
+                   , friend: case _ of
+                       ""  -> Left "a friend is required"
+                       fr -> Right fr
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
@@ -102,6 +107,16 @@ render { context: { formActions, fields, actions}, prompts } = do
                                , HEV.onBlur actions.member.handleBlur
                                , case fields.member.result of
                                    Nothing        -> HP.placeholder "member"
+                                   Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
+                                   Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
+                               ]
+                    ]
+          , HH.div_ [ HH.label_ []
+                    , HH.input [ HP.type_ HP.InputText
+                               , HEV.onValueInput actions.friend.handleChange
+                               , HEV.onBlur actions.friend.handleBlur
+                               , case fields.friend.result of
+                                   Nothing        -> HP.placeholder "friend"
                                    Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
                                    Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
                                ]
