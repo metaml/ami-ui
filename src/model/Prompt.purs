@@ -19,8 +19,8 @@ import Html as Html
 import Web.HTML.Common (ClassName(..))
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( member :: f String String String
-              , prompt :: f String String String
+type Form f = ( prompt :: f String String String
+              , member :: f String String String
               , friend :: f String String String
               )           -- input  error  output
 
@@ -72,12 +72,12 @@ query = do
                     }
 
       validation :: { | Form F.FieldValidation }
-      validation = { member: case _ of
+      validation = { prompt: case _ of
                        ""  -> Left "a member is required"
-                       mb -> Right mb
-                   , prompt: case _ of
-                       ""  -> Left "a prompt is required"
                        pr -> Right pr
+                   , member: case _ of
+                       ""  -> Left "a prompt is required"
+                       mb -> Right mb
                    , friend: case _ of
                        ""  -> Left "a friend is required"
                        fr -> Right fr
@@ -87,11 +87,14 @@ query = do
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, prompts } = do
   -- let lines = intersperse HH.br_ $ map (\{ member, prompt } -> HH.text (member <> ": " <> prompt)) prompts
-  let texts = (\{ member, prompt } -> HH.text (member <> ": " <> prompt)) <$> prompts
-      container = HP.class_ (ClassName "container")
-      articles = (\text -> HH.article [ container ] [ text ]) <$> texts
+  let container = HP.class_ (ClassName "container")
+      pmfs = (\p -> HH.text (p.prompt <> " | " <> p.member <> " | " <>  p.friend)) <$> prompts
+      pmfHtmls = (\p -> HH.article [ container ] [ p ]) <$> pmfs
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
+                    , HH.ul_ pmfHtmls
+                    ]
+          , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
                                , HEV.onValueInput actions.prompt.handleChange
                                , HEV.onBlur actions.prompt.handleBlur
