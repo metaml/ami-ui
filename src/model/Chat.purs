@@ -70,9 +70,11 @@ query = do
                     }
 
         let msg :: A.Message
-            msg = { content: fields.message, role: "user" }
+            msg = { content: fields.message, role: fields.name }
             req :: A.Request
             req = { messages: [ msg ], stream: false }
+        H.liftEffect $ logShow fields
+        H.liftEffect $ logShow msg
         { messages, friend } :: A.Response <- H.liftAff $ A.talk req
 
         let msg' = head messages

@@ -1,4 +1,4 @@
-{ name = "ami-u"
+{ name = "ami-ui"
 , dependencies = [ "aff"
                  , "arrays"
                  , "argonaut-codecs"
