@@ -19,6 +19,6 @@ main = HA.runHalogenAff do
                                 , logo: Just (HH.text "ami")
                                 }
   where stories :: Stories Aff
-        stories = Object.fromFoldable [ Tuple "" $ proxy Home.component
-                                      , Tuple "chat" $ proxy $ Chat.component
+        stories = Object.fromFoldable [ Tuple ""     $ proxy Home.component
+                                      , Tuple "chat" $ proxy Chat.component
                                       ]

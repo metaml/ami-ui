@@ -2,7 +2,7 @@ module Chat where
 
 import Prelude
 import Ami as A
-import Data.Array (head, intersperse)
+import Data.Array (head)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -13,9 +13,11 @@ import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.CSS as HC
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
+import Web.HTML.Common (ClassName(..))
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( name    :: f String String String
@@ -61,11 +63,11 @@ query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m
 query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
-        state <- H.get
-        H.modify_ _ { messages = state.messages <> [ { message: fields.message
-                                                     , name: fields.name
-                                                     }
-                                                   ]
+        state' <- H.get
+        H.modify_ _ { messages = state'.messages <> [ { message: fields.message
+                                                      , name: fields.name
+                                                      }
+                                                    ]
                     }
 
         let msg :: A.Message
@@ -80,10 +82,10 @@ query = do
             H.liftEffect $ log "Nothing"
             pure unit
           Just amiMsg -> do
-            let msg = { message: amiMsg.content, name: friend } :: Message
-            H.liftEffect $ logShow msg
+            let rec = { message: amiMsg.content, name: friend } :: Message
+            H.liftEffect $ logShow rec
             state <- H.get
-            H.modify_ _ { messages = state.messages <> [msg] }
+            H.modify_ _ { messages = state.messages <> [rec] }
 
       validation :: { | Form F.FieldValidation }
       validation = { name: case _ of
@@ -97,10 +99,13 @@ query = do
 
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, messages } = do
-  let lines = intersperse HH.br_ $ map (\{ name, message } -> HH.text (name <> ": " <> message)) messages
+  -- let lines = intersperse HH.br_ $ map (\{ name, message } -> HH.text (name <> ": " <> message)) messages
+  let texts = (\{ name, message } -> HH.text (name <> ": " <> message)) <$> messages
+      container = HP.class_ (ClassName "container")
+      articles = (\text -> HH.article [ container ] [ text ]) <$> texts
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
-                    , HH.pre_ lines
+                    , HH.ul_ articles
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText

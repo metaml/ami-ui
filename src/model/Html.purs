@@ -2,10 +2,13 @@ module Html where
 
 import Prelude (class Show, Unit, ($), identity, unit, show)
 import Data.Maybe (Maybe(..))
+import DOM.HTML.Indexed (CSSPixel) as I
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Core (class IsProp, AttrName(..), ClassName, Namespace, PropName(..), Prop)
+import Halogen.HTML.Properties
 import Type.Proxy (Proxy(..))
 
 type Title = String
@@ -29,3 +32,6 @@ mkComponent title descr formComponent = H.mkComponent
                                        Nothing -> HH.text ""
                                        Just result -> HH.code_ [ HH.text $ show result ]
                                    ]
+
+width :: forall r i. I.CSSPixel -> IProp (width :: I.CSSPixel | r) i
+width = prop (PropName "width")
