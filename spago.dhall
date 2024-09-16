@@ -5,6 +5,7 @@
                  , "argonaut-core"
     	       	 , "console"
                  , "const"
+                 , "dom-indexed"
                  , "effect"
                  , "either"
                  , "fetch"

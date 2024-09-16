@@ -13,7 +13,6 @@ import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.CSS as HC
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
