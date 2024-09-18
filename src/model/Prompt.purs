@@ -17,18 +17,19 @@ import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
 import Web.HTML.Common (ClassName(..))
+import Undefined
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( prompt :: f String String String
               , member :: f String String String
               , friend :: f String String String
-              , select :: f String String String
+              , checkedPrompts :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
-data Action = Receive FormContext | Eval FormlessAction
+data Action = Receive FormContext | Eval FormlessAction | Initialize
 type FormInputs = { | Form F.FieldInput }
 
 type Query :: forall k. k -> Type
@@ -59,6 +60,7 @@ action :: forall m. MonadEffect m
 action = case _ of
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
+           Initialize      -> initialize
 
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = do
@@ -69,7 +71,7 @@ query = do
         H.modify_ _ { prompts = state'.prompts <> [ { prompt: fields.prompt
                                                     , member: fields.member
                                                     , friend: fields.friend
-                                                    , select: fields.select
+                                                    , checkedPrompts: fields.checkedPrompts
                                                     }
                                                   ]
                     }
@@ -84,7 +86,7 @@ query = do
                    , friend: case _ of
                        ""  -> Left "a friend is required"
                        fr -> Right fr
-                   , select: case _ of
+                   , checkedPrompts: case _ of
                        s -> Right s
 
                    }
@@ -154,3 +156,6 @@ render { context: { formActions, fields, actions}, prompts } = do
           idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
           idxPrompts prompts = let indices = 0..length prompts
                                in zip indices prompts
+
+initialize :: forall m. MonadEffect m => H.HalogenM _ _ _ _ m Unit
+initialize = undefined
