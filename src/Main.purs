@@ -13,7 +13,6 @@ import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.Storybook (Stories, proxy, runStorybook)
 
-
 main :: Effect Unit
 main = HA.runHalogenAff do
   HA.awaitBody >>= runStorybook { stories

@@ -1,11 +1,10 @@
 module Prompt where
-
 import Prelude
--- import Ami as A
-import Data.Array (head)
+import Data.Array ((..), concat, head, length, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Data.Tuple (Tuple(..))
 import Effect.Class (class MonadEffect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
@@ -13,6 +12,7 @@ import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Elements as HE
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
@@ -84,16 +84,24 @@ query = do
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
+-- UI.checkbox_ { label: "Subscribe"
+--              , state: fields.subscribe
+--              , action: actions.subscribe
+--              }
+
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, prompts } = do
-  -- let lines = intersperse HH.br_ $ map (\{ member, prompt } -> HH.text (member <> ": " <> prompt)) prompts
-  let container = HP.class_ (ClassName "container")
-      pmfs = (\p -> HH.text (p.prompt <> " | " <> p.member <> " | " <>  p.friend)) <$> prompts
-      pmfHtmls = (\p -> HH.article [ container ] [ p ]) <$> pmfs
+  let tuples = idxPrompts prompts
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
-          [ HH.div_ [ HH.label_ []
-                    , HH.ul_ pmfHtmls
-                    ]
+          [ HH.div_ ([ HH.label_ [] ] <> concat (inputCheckbox <$> tuples))
+                    -- , HH.input [ HP.type_ HP.InputCheckbox
+                    --            , HP.id "1"
+                    --            , HP.name "prompt"
+                    --            , HP.value "<prompt>"
+                    --            ]
+                    -- , HH.label [ HP.for "1" ]
+                    --            [ HH.text "<prompt>" ]
+                    -- ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
                                , HEV.onValueInput actions.prompt.handleChange
@@ -126,3 +134,17 @@ render { context: { formActions, fields, actions}, prompts } = do
                     ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
+    where inputCheckbox :: forall w i. Tuple Int Prompt -> Array (HH.HTML w i)
+          inputCheckbox (Tuple i p) = [ HH.input [ HP.type_ HP.InputCheckbox
+                                                 , HP.id (show i)
+                                                 , HP.name "prompt"
+                                                 , HP.value p.prompt
+                                                 ]
+                                      , HH.label [ HP.for (show i) ]
+                                                 [ HH.text p.prompt ]
+                                      , HE.br_
+                                      ]
+
+          idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
+          idxPrompts prompts = let indices = 0..length prompts
+                               in zip indices prompts
