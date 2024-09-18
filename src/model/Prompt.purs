@@ -22,6 +22,7 @@ type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( prompt :: f String String String
               , member :: f String String String
               , friend :: f String String String
+              , select :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
@@ -64,9 +65,11 @@ query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
         state' <- H.get
+        H.liftEffect $ logShow fields
         H.modify_ _ { prompts = state'.prompts <> [ { prompt: fields.prompt
                                                     , member: fields.member
                                                     , friend: fields.friend
+                                                    , select: fields.select
                                                     }
                                                   ]
                     }
@@ -81,6 +84,9 @@ query = do
                    , friend: case _ of
                        ""  -> Left "a friend is required"
                        fr -> Right fr
+                   , select: case _ of
+                       s -> Right s
+
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
