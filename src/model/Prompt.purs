@@ -14,6 +14,7 @@ import Effect.Console (log, logShow)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Core as HC
 import Halogen.HTML.Elements as HE
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
@@ -148,7 +149,7 @@ render { context: { formActions, fields, actions}, prompts } = do
                                                    , HP.name "checked"
                                                    , HP.value p.prompt
                                                    , HP.checked false
-                                                   -- , HEV.onChecked \_ -> actions.checked.handleChange
+                                                   -- , HEV.onChecked ?type
                                                    ]
                                                  , HH.text p.prompt
                                                  ]
@@ -157,7 +158,6 @@ render { context: { formActions, fields, actions}, prompts } = do
           idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
           idxPrompts prompts = let indices = 0..length prompts
                                in zip indices prompts
-
 -- HE.onChecked action.handleChange
 -- HE.onBlur action.handleBlur
 
