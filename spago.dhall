@@ -15,6 +15,7 @@
                  , "halogen-formless"
                  , "halogen-storybook"
                  , "maybe"
+                 , "ordered-collections"
                  , "prelude"
                  , "random"
                  , "tuples"
