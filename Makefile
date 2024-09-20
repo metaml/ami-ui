@@ -29,10 +29,10 @@ install-app: bundle ## copy index.[html, js] to ami/static
 	cp -p index.* ../ami/static/.
 
 clean: ## clean
-	find . -name \*~ | xargs rm -f
-	rm -rf output/*
+	find . -name \*~ -or -name \#\*\# | xargs rm -f
 
 clobber: clean ## clobber
+	rm -rf output/*
 	rm -rf node_modules/*
 
 dev: ## nix develop
