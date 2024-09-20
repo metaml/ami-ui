@@ -21,16 +21,17 @@ import Html as Html
 import Undefined (undefined)
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( prompt  :: f String String String
+type Form f = ( checked :: f Boolean Void String
+              , prompt  :: f String String String
               , member  :: f String String String
               , friend  :: f String String String
-              , checked :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
 data Action = Initialize
+            | Checked (Tuple Prompt Boolean)
             | Receive FormContext
             | Eval FormlessAction
 type FormInputs = { | Form F.FieldInput }
@@ -49,20 +50,24 @@ component :: _ _ _ Aff
 component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
-form = F.formless { liftAction: Eval } mempty
-       $ H.mkComponent { initialState: \ctx -> { context: ctx, prompts: M.empty }
+form = F.formless { liftAction: Eval } initialForm
+       $ H.mkComponent { initialState: \context -> { context: context, prompts: M.empty }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive = Just <<< Receive
                                                         , handleAction = action
                                                         , handleQuery  = query
                                                         }
                        }
+       where initialForm :: { | Form F.FieldInput }
+             initialForm = { checked: false, prompt: "", member: "", friend: "" }
+
 
 action :: forall m. MonadEffect m
           => Action
           -> H.HalogenM State Action () (F.FormOutput (Form F.FieldState) Output) m Unit
 action = case _ of
            Receive context -> H.modify_ _ { context = context }
+           Checked prompt  -> undefined
            Eval action'    -> F.eval action'
            Initialize      -> initialize
 
@@ -90,9 +95,7 @@ query = do
                    , friend: case _ of
                        ""  -> Left "a friend is required"
                        fr -> Right fr
-                   , checked: case _ of
-                       s -> Right s
-
+                   , checked: \_ -> Right ""
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
@@ -101,8 +104,8 @@ render { context: { formActions, fields, actions}, prompts } = do
   let tuples = idxPrompts (toUnfoldable (M.keys prompts))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HE.fieldset_ (
-                      [ HE.legend_ [ HH.text "properties" ] ]
-                      <> concat (inputCheckbox <$> tuples)
+                        [ HE.legend_ [ HH.text "properties" ] ]
+                        <> concat (inputCheckbox <$> tuples)
                       )
                     ]
           , HH.div_ [ HH.label_ []
@@ -138,53 +141,25 @@ render { context: { formActions, fields, actions}, prompts } = do
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
     where inputCheckbox :: forall w i. Tuple Int Prompt -> Array (HH.HTML w i)
-          inputCheckbox (Tuple i p) = [ HH.label_
-                                        [ HH.input
-                                          [ HP.type_ HP.InputCheckbox
-                                          , HP.checked false
-                                          ]
-                                          , HH.text p.prompt
-                                        ]
+          inputCheckbox (Tuple i p) = [ HH.label [ HP.for (show i) ]
+                                                 [ HH.input
+                                                   [ HP.type_ HP.InputCheckbox
+                                                   , HP.id (show i)
+                                                   , HP.name "checked"
+                                                   , HP.value p.prompt
+                                                   , HP.checked false
+                                                   -- , HEV.onChecked \_ -> actions.checked.handleChange
+                                                   ]
+                                                 , HH.text p.prompt
+                                                 ]
                                       ]
 
           idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
           idxPrompts prompts = let indices = 0..length prompts
                                in zip indices prompts
 
+-- HE.onChecked action.handleChange
+-- HE.onBlur action.handleBlur
+
 initialize :: forall m. MonadEffect m => H.HalogenM _ _ _ _ m Unit
 initialize = undefined
-
--- checkbox
---   :: forall error action slots m
---    . Checkbox error action
---   -> Array (HP.IProp HTMLinput action)
---   -> H.ComponentHTML action slots m
--- checkbox { label, state, action } props =
---   HH.fieldset_
---     [ HH.label_
---         [ HH.input $ flip append props
---             [ HP.type_ HP.InputCheckbox
---             , HP.checked state.value
---             , HE.onChecked action.handleChange
---             , HE.onBlur action.handleBlur
---             ]
---         , HH.text label
---         ]
---     ]
-
--- checkbox_
---   :: forall error action slots m
---    . Checkbox error action
---   -> H.ComponentHTML action slots m
--- checkbox_ = flip checkbox []
-
-    -- where inputCheckbox :: forall w i. Tuple Int Prompt -> Array (HH.HTML w i)
-    --       inputCheckbox (Tuple i p) = [ HH.input [ HP.type_ HP.InputCheckbox
-    --                                              , HP.id (show i)
-    --                                              , HP.name "prompt"
-    --                                              , HP.value p.prompt
-    --                                              ]
-    --                                   , HH.label [ HP.for (show i) ]
-    --                                              [ HH.text p.prompt ]
-    --                                   , HE.br_
-    --                                   ]
