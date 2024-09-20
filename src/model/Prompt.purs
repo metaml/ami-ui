@@ -100,9 +100,10 @@ render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, prompts } = do
   let tuples = idxPrompts (toUnfoldable (M.keys prompts))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
-          [ HH.div_ [ HE.fieldset_ ( [ HE.legend_ [ HH.text "properties" ]
-                                     ] <> concat (inputCheckbox <$> tuples)
-                                   )
+          [ HH.div_ [ HE.fieldset_ (
+                      [ HE.legend_ [ HH.text "properties" ] ]
+                      <> concat (inputCheckbox <$> tuples)
+                      )
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
