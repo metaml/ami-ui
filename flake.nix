@@ -5,7 +5,7 @@
     nixpkgs     = { url = "nixpkgs/nixpkgs-unstable"; };
     utils       = { url = "github:numtide/flake-utils"; };
   };
-  
+
   outputs = { self, nixpkgs, utils }:
     utils.lib.eachDefaultSystem (system:
       let
@@ -41,6 +41,8 @@
             jq
             nixpkgs-fmt
             nodejs_22
+            purescript
+            spago
           ];
 
           shellHook = ''
@@ -53,7 +55,7 @@
             export PS1="ami-ui|$PS1"
           '';
         };
-        devShell = self.devShells.${system}.default;        
+        devShell = self.devShells.${system}.default;
       }
     );
 }
