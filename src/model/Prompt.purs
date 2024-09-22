@@ -1,16 +1,20 @@
 module Prompt where
+
 import Prelude
+import DOM.HTML.Indexed (HTMLinput(..))
 import Data.Array ((..), concat, length, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Int as Int
 import Data.Map as M
-import Data.Set (toUnfoldable)
+import Data.Maybe (Maybe(..))
+import Data.Set (toUnfoldable) as S
 import Data.Tuple (Tuple(..))
-import Effect.Class (class MonadEffect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (class MonadEffect)
 import Effect.Console (log, logShow)
+import Formless (FieldAction, FieldState)
 import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
@@ -19,11 +23,11 @@ import Halogen.HTML.Elements as HE
 import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
+import PromptState as P
 import Undefined (undefined)
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( checked :: f Boolean Void String
-              , prompt  :: f String String String
+type Form f = ( prompt  :: f String String String
               , member  :: f String String String
               , friend  :: f String String String
               )           -- input  error  output
@@ -31,8 +35,10 @@ type Form f = ( checked :: f Boolean Void String
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
+type PromptMap = M.Map Prompt Boolean
+
 data Action = Initialize
-            | Checked (Tuple Prompt Boolean)
+            | Put Prompt Boolean
             | Receive FormContext
             | Eval FormlessAction
 type FormInputs = { | Form F.FieldInput }
@@ -43,9 +49,12 @@ type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
 type Prompt = { | Form F.FieldOutput }
+
 type State = { context :: FormContext
-             , prompts :: M.Map Prompt Boolean
+             , prompts :: PromptMap
              }
+
+-- type Slots = ( put :: P.Slot PromptMap )
 
 component :: _ _ _ Aff
 component = Html.mkComponent "prompt" "" form
@@ -55,22 +64,25 @@ form = F.formless { liftAction: Eval } initialForm
        $ H.mkComponent { initialState: \context -> { context: context, prompts: M.empty }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive = Just <<< Receive
+                                                        -- , initialize = Just Initialize
                                                         , handleAction = action
                                                         , handleQuery  = query
                                                         }
                        }
        where initialForm :: { | Form F.FieldInput }
-             initialForm = { checked: false, prompt: "", member: "", friend: "" }
+             initialForm = { prompt: "", member: "", friend: "" }
 
 
-action :: forall m. MonadEffect m
+-- slots can equal ()
+action :: forall slots m. MonadEffect m
           => Action
-          -> H.HalogenM State Action () (F.FormOutput (Form F.FieldState) Output) m Unit
+          -> H.HalogenM State Action slots (F.FormOutput (Form F.FieldState) Output) m Unit
 action = case _ of
-           Receive context -> H.modify_ _ { context = context }
-           Checked prompt  -> undefined
-           Eval action'    -> F.eval action'
            Initialize      -> initialize
+           Put prompt bool -> do { context, prompts } <- H.get
+                                 H.modify_ _ { prompts = M.insert prompt bool prompts }
+           Receive context -> H.modify_ _ { context = context }
+           Eval action'    -> F.eval action'
 
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = do
@@ -81,7 +93,6 @@ query = do
         H.modify_ _ { prompts = M.insert { prompt: fields.prompt
                                          , member: fields.member
                                          , friend: fields.friend
-                                         , checked: fields.checked
                                          }
                                          true
                                          state'.prompts
@@ -96,17 +107,17 @@ query = do
                    , friend: case _ of
                        ""  -> Left "a friend is required"
                        fr -> Right fr
-                   , checked: \_ -> Right ""
                    }
   F.handleSubmitValidate onSubmit F.validate validation
 
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, prompts } = do
-  let tuples = idxPrompts (toUnfoldable (M.keys prompts))
+  let tuples = idxPrompts (S.toUnfoldable (M.keys prompts))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
-          [ HH.div_ [ HE.fieldset_ (
+          [ HH.div_ [ HE.fieldset_
+                      (
                         [ HE.legend_ [ HH.text "properties" ] ]
-                        <> concat (inputCheckbox <$> tuples)
+                        <> (inputCheckbox <$> tuples)
                       )
                     ]
           , HH.div_ [ HH.label_ []
@@ -141,25 +152,46 @@ render { context: { formActions, fields, actions}, prompts } = do
                     ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
-    where inputCheckbox :: forall w i. Tuple Int Prompt -> Array (HH.HTML w i)
-          inputCheckbox (Tuple i p) = [ HH.label [ HP.for (show i) ]
-                                                 [ HH.input
-                                                   [ HP.type_ HP.InputCheckbox
-                                                   , HP.id (show i)
-                                                   , HP.name "checked"
-                                                   , HP.value p.prompt
-                                                   , HP.checked false
-                                                   -- , HEV.onChecked ?type
-                                                   ]
-                                                 , HH.text p.prompt
-                                                 ]
-                                      ]
 
-          idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
-          idxPrompts prompts = let indices = 0..length prompts
-                               in zip indices prompts
--- HE.onChecked action.handleChange
--- HE.onBlur action.handleBlur
+    where
+      idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
+      idxPrompts prompts = zip (0..(length prompts)) prompts
+
+      inputCheckbox (Tuple index prompt) = HH.label [ HP.for (toString index) ]
+                                                    [ HH.input [ HP.type_ HP.InputCheckbox
+                                                               , HP.id (toString index)
+                                                               , HP.name "checked"
+                                                               , HP.value prompt.prompt
+                                                               , HP.checked false
+                                                               , HEV.onChecked \b -> (Put prompt b)
+                                                               ]
+                                                    , HH.text prompt.prompt
+                                                    ]
+                                           where toString :: Int -> String
+                                                 toString = Int.toStringAs Int.decimal
 
 initialize :: forall m. MonadEffect m => H.HalogenM _ _ _ _ m Unit
 initialize = undefined
+
+-- checkbox
+type Checkbox error action =
+  { label :: String
+  , state :: FieldState Boolean error Boolean
+  , action :: FieldAction action Boolean error Boolean
+  }
+
+checkbox :: forall error action slots m.
+            Checkbox error action
+         -> Array (HP.IProp HTMLinput action)
+         -> H.ComponentHTML action slots m
+checkbox { label, state, action } props =
+  HH.fieldset_ [ HH.label_
+                 [ HH.input $ flip append props
+                   [ HP.type_ HP.InputCheckbox
+                   , HP.checked state.value
+                   , HEV.onChecked action.handleChange
+                   , HEV.onBlur action.handleBlur
+                   ]
+                 , HH.text label
+                 ]
+               ]

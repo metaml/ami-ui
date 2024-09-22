@@ -25,7 +25,7 @@ update: ## update packages
 	spago install
 
 # call make run first
-install-app: bundle ## copy index.[html, js] to ami/static
+install-dev: bundle ## copy index.[html, js] to ami/static
 	cp -p index.* ../ami/static/.
 
 clean: ## clean

@@ -1,7 +1,7 @@
 module Html where
 
 import Prelude
-import DOM.HTML.Indexed (CSSPixel) as I
+import DOM.HTML.Indexed (CSSPixel, HTMLinput(..))
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
@@ -17,7 +17,7 @@ import Type.Proxy (Proxy(..))
 type Title = String
 type Description = String
 
-mkComponent :: forall q i o result . Show result
+mkComponent :: forall q i o result. Show result
             => Title
             -> Description
             -> H.Component q Unit result Aff
@@ -36,5 +36,32 @@ mkComponent title descr formComponent =
                                        Just result -> HH.code_ [ HH.text $ show result ]
                                    ]
 
-width :: forall r i. I.CSSPixel -> HP.IProp (width :: I.CSSPixel | r) i
+width :: forall r i. CSSPixel -> HP.IProp (width :: CSSPixel | r) i
 width = HP.prop (PropName "width")
+
+type Checkbox error action =
+  { label :: String
+  , state :: FieldState Boolean error Boolean
+  , action :: FieldAction action Boolean error Boolean
+  }
+
+checkbox :: forall error action slots m.
+            Checkbox error action
+         -> Array (HP.IProp HTMLinput action)
+         -> H.ComponentHTML action slots m
+checkbox { label, state, action } props =
+  HH.fieldset_ [ HH.label_
+                 [ HH.input $ flip append props
+                   [ HP.type_ HP.InputCheckbox
+                   , HP.checked state.value
+                   , HE.onChecked action.handleChange
+                   , HE.onBlur action.handleBlur
+                   ]
+                 , HH.text label
+                 ]
+               ]
+
+checkbox_ :: forall error action slots m.
+             Checkbox error action
+          -> H.ComponentHTML action slots m
+checkbox_ = flip checkbox []
