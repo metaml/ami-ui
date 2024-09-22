@@ -35,8 +35,6 @@ type Form f = ( prompt  :: f String String String
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
-type PromptMap = M.Map Prompt Boolean
-
 data Action = Initialize
             | Put Prompt Boolean
             | Receive FormContext
@@ -49,6 +47,7 @@ type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
 type Prompt = { | Form F.FieldOutput }
+type PromptMap = M.Map Prompt Boolean
 
 type State = { context :: FormContext
              , prompts :: PromptMap
@@ -63,8 +62,8 @@ form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } initialForm
        $ H.mkComponent { initialState: \context -> { context: context, prompts: M.empty }
                        , render
-                       , eval: H.mkEval $ H.defaultEval { receive = Just <<< Receive
-                                                        -- , initialize = Just Initialize
+                       , eval: H.mkEval $ H.defaultEval { receive      = Just <<< Receive
+                                                        , initialize   = Nothing -- Just Initialize @todo
                                                         , handleAction = action
                                                         , handleQuery  = query
                                                         }
@@ -79,36 +78,50 @@ action :: forall slots m. MonadEffect m
           -> H.HalogenM State Action slots (F.FormOutput (Form F.FieldState) Output) m Unit
 action = case _ of
            Initialize      -> initialize
-           Put prompt bool -> do { context, prompts } <- H.get
-                                 H.modify_ _ { prompts = M.insert prompt bool prompts }
+           Put prompt bool -> do
+             { context, prompts } <- H.get
+             let prompts' = M.insert prompt bool prompts
+             H.modify_ _ { prompts = prompts' }
+             H.liftEffect $ log "------------"
+             H.liftEffect $ logShow prompts'
+             H.liftEffect $ logShow (show bool)
+             H.liftEffect $ log "============"
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
 
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
-query = do
-  let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
-      onSubmit fields = do
-        state' <- H.get
-        H.liftEffect $ logShow fields
-        H.modify_ _ { prompts = M.insert { prompt: fields.prompt
-                                         , member: fields.member
-                                         , friend: fields.friend
-                                         }
-                                         true
-                                         state'.prompts
-                    }
-      validation :: { | Form F.FieldValidation }
-      validation = { prompt: case _ of
-                       ""  -> Left "a member is required"
-                       pr -> Right pr
-                   , member: case _ of
-                       ""  -> Left "a prompt is required"
-                       mb -> Right mb
-                   , friend: case _ of
-                       ""  -> Left "a friend is required"
-                       fr -> Right fr
-                   }
-  F.handleSubmitValidate onSubmit F.validate validation
+query = F.handleSubmitValidate onSubmit F.validate validation
+  where onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
+        onSubmit fields = do
+          state <- H.get
+          let prompt = { prompt: fields.prompt
+                       , member: fields.member
+                       , friend: fields.friend
+                       } :: Prompt
+              prompt' = M.lookup prompt state.prompts :: Maybe Boolean
+              toggle = case prompt' of Nothing -> false
+                                       Just b  -> b
+              prompts'' = M.insert prompt toggle state.prompts
+          H.liftEffect $ logShow prompt
+          H.liftEffect $ logShow prompts''
+          H.liftEffect $ logShow fields
+          H.modify_ _ { prompts = prompts'' }
+          state' <- H.get
+          H.liftEffect $ logShow state'.prompts
+          H.liftEffect $ logShow fields
+          H.liftEffect $ log "############"
+
+        validation :: { | Form F.FieldValidation }
+        validation = { prompt: case _ of
+                          ""  -> Left "a member is required"
+                          pr -> Right pr
+                     , member: case _ of
+                          ""  -> Left "a prompt is required"
+                          mb -> Right mb
+                     , friend: case _ of
+                          ""  -> Left "a friend is required"
+                          fr -> Right fr
+                     }
 
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, prompts } = do
@@ -172,26 +185,3 @@ render { context: { formActions, fields, actions}, prompts } = do
 
 initialize :: forall m. MonadEffect m => H.HalogenM _ _ _ _ m Unit
 initialize = undefined
-
--- checkbox
-type Checkbox error action =
-  { label :: String
-  , state :: FieldState Boolean error Boolean
-  , action :: FieldAction action Boolean error Boolean
-  }
-
-checkbox :: forall error action slots m.
-            Checkbox error action
-         -> Array (HP.IProp HTMLinput action)
-         -> H.ComponentHTML action slots m
-checkbox { label, state, action } props =
-  HH.fieldset_ [ HH.label_
-                 [ HH.input $ flip append props
-                   [ HP.type_ HP.InputCheckbox
-                   , HP.checked state.value
-                   , HEV.onChecked action.handleChange
-                   , HEV.onBlur action.handleBlur
-                   ]
-                 , HH.text label
-                 ]
-               ]
