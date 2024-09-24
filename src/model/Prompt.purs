@@ -1,10 +1,12 @@
 module Prompt where
 
 import Prelude
+import Ami as Ami
 import DOM.HTML.Indexed (HTMLinput(..))
 import Data.Array ((..), concat, length, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
+import Data.Foldable (foldr)
 import Data.Int as Int
 import Data.Map as M
 import Data.Maybe (Maybe(..))
@@ -49,8 +51,8 @@ type Output = { | Form F.FieldOutput }
 type Prompt = { | Form F.FieldOutput }
 type PromptMap = M.Map Prompt Boolean
 
-type State = { context :: FormContext
-             , prompts :: PromptMap
+type State = { context   :: FormContext
+             , promptMap :: PromptMap
              }
 
 -- type Slots = ( put :: P.Slot PromptMap )
@@ -60,10 +62,10 @@ component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } initialForm
-       $ H.mkComponent { initialState: \context -> { context: context, prompts: M.empty }
+       $ H.mkComponent { initialState: \context -> { context: context, promptMap: M.empty }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive      = Just <<< Receive
-                                                        , initialize   = Nothing -- Just Initialize @todo
+                                                        , initialize   = Just Initialize
                                                         , handleAction = action
                                                         , handleQuery  = query
                                                         }
@@ -73,21 +75,28 @@ form = F.formless { liftAction: Eval } initialForm
 
 
 -- slots can equal ()
-action :: forall slots m. MonadEffect m
+action :: forall slots m. MonadAff m
           => Action
           -> H.HalogenM State Action slots (F.FormOutput (Form F.FieldState) Output) m Unit
-action = case _ of
-           Initialize      -> initialize
-           Put prompt bool -> do
-             { context, prompts } <- H.get
-             let prompts' = M.insert prompt bool prompts
-             H.modify_ _ { prompts = prompts' }
-             H.liftEffect $ log "------------"
-             H.liftEffect $ logShow prompts'
-             H.liftEffect $ logShow (show bool)
-             H.liftEffect $ log "============"
-           Receive context -> H.modify_ _ { context = context }
-           Eval action'    -> F.eval action'
+action = do
+  case _ of
+    Initialize -> do
+      { context, promptMap } <- H.get
+      prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
+      let promptMap' = foldr insert M.empty prompts
+      H.liftEffect $ logShow prompts
+      H.liftEffect $ logShow promptMap'
+      H.modify_ _ { promptMap = promptMap' }
+    Put prompt bool -> do
+      { context, promptMap } <- H.get
+      let promptMap' = M.insert prompt bool promptMap
+      H.modify_ _ { promptMap = promptMap' }
+      H.liftEffect $ logShow promptMap'
+    Receive context -> H.modify_ _ { context = context }
+    Eval action'    -> F.eval action'
+  where insert :: Ami.Prompt -> PromptMap -> PromptMap
+        insert p pmap = M.insert { prompt: p.prompt, member: p.member, friend: p.friend } p.enabled pmap
+
 
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = F.handleSubmitValidate onSubmit F.validate validation
@@ -98,18 +107,11 @@ query = F.handleSubmitValidate onSubmit F.validate validation
                        , member: fields.member
                        , friend: fields.friend
                        } :: Prompt
-              prompt' = M.lookup prompt state.prompts :: Maybe Boolean
-              toggle = case prompt' of Nothing -> false
-                                       Just b  -> b
-              prompts'' = M.insert prompt toggle state.prompts
-          H.liftEffect $ logShow prompt
-          H.liftEffect $ logShow prompts''
-          H.liftEffect $ logShow fields
-          H.modify_ _ { prompts = prompts'' }
-          state' <- H.get
-          H.liftEffect $ logShow state'.prompts
-          H.liftEffect $ logShow fields
-          H.liftEffect $ log "############"
+              promptMap = M.lookup prompt state.promptMap :: Maybe Boolean
+              toggle = case promptMap of Nothing -> false
+                                         Just b  -> b
+              promptMap' = M.insert prompt toggle state.promptMap
+          H.modify_ _ { promptMap = promptMap' }
 
         validation :: { | Form F.FieldValidation }
         validation = { prompt: case _ of
@@ -124,8 +126,8 @@ query = F.handleSubmitValidate onSubmit F.validate validation
                      }
 
 render :: State -> H.ComponentHTML Action () Aff
-render { context: { formActions, fields, actions}, prompts } = do
-  let tuples = idxPrompts (S.toUnfoldable (M.keys prompts))
+render { context: { formActions, fields, actions}, promptMap } = do
+  let tuples = idxPrompts (S.toUnfoldable (M.keys promptMap))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HE.fieldset_
                       (
@@ -165,7 +167,6 @@ render { context: { formActions, fields, actions}, prompts } = do
                     ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
           ]
-
     where
       idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
       idxPrompts prompts = zip (0..(length prompts)) prompts
@@ -182,6 +183,3 @@ render { context: { formActions, fields, actions}, prompts } = do
                                                     ]
                                            where toString :: Int -> String
                                                  toString = Int.toStringAs Int.decimal
-
-initialize :: forall m. MonadEffect m => H.HalogenM _ _ _ _ m Unit
-initialize = undefined
