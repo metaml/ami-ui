@@ -51,7 +51,22 @@ prompts req = do
 
 prompts' :: PromptReq -> Aff (Array Prompt')
 prompts' req = do
-  let url = baseUrl <> "/prompts" -- @todo: change to ec2 URL
+  let url = baseUrl <> "/prompts"
+  ps <- F.fetch url { method: F.POST
+                    , body: stringify (encodeJson req)
+                    , headers: { "Content-Type": "application/json" }
+                    }
+  psjson <- ps.json
+  let json = unsafeFromForeign psjson
+      res' = decodeJson json :: Either _ PromptRes
+  H.liftEffect $ logShow res'
+  case res' of
+    Left e   -> (H.liftEffect $ logShow e)  *> pure []
+    Right ps -> (H.liftEffect $ logShow ps) *> pure ps
+
+promptsSystem :: PromptReq -> Aff (Array Prompt')
+promptsSystem req = do
+  let url = baseUrl <> "/prompts_system"
   ps <- F.fetch url { method: F.POST
                     , body: stringify (encodeJson req)
                     , headers: { "Content-Type": "application/json" }
