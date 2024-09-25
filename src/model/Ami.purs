@@ -22,11 +22,11 @@ type MsgReq = { messages :: Array Msg, stream :: Boolean }
 type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
-baseUrl = "http://localhost:8000/"
+baseUrl = "http://localhost:8000"
 
 talk :: MsgReq -> Aff MsgRes
 talk req = do
-  let url = baseUrl <> "talk/"
+  let url = baseUrl <> "/talk"
   res <- F.fetch url { method: F.POST
                      , body: stringify (encodeJson req)
                      , headers: { "Content-Type": "application/json" }
@@ -51,7 +51,7 @@ prompts req = do
 
 prompts' :: PromptReq -> Aff (Array Prompt')
 prompts' req = do
-  let url = baseUrl <> "prompts/" -- @todo: change to ec2 URL
+  let url = baseUrl <> "/prompts" -- @todo: change to ec2 URL
   ps <- F.fetch url { method: F.POST
                     , body: stringify (encodeJson req)
                     , headers: { "Content-Type": "application/json" }
@@ -66,7 +66,7 @@ prompts' req = do
 
 promptAdd :: Prompt' -> Aff Boolean
 promptAdd p = do
-  let url = baseUrl <> "prompts/add/"
+  let url = baseUrl <> "/prompts/add"
   res <- F.fetch url { method: F.POST
                      , body: stringify (encodeJson p)
                      , headers: { "Content-Type": "application/json" }

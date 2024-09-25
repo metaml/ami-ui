@@ -84,8 +84,6 @@ action = do
       { context, promptMap } <- H.get
       prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
       let promptMap' = foldr insert M.empty prompts
-      H.liftEffect $ logShow prompts
-      H.liftEffect $ logShow promptMap'
       H.modify_ _ { promptMap = promptMap' }
     Put prompt bool -> do
       { context, promptMap } <- H.get
@@ -97,16 +95,10 @@ action = do
   where insert :: Ami.Prompt -> PromptMap -> PromptMap
         insert p pmap = M.insert { prompt: p.prompt, member: p.member, friend: p.friend } p.enabled pmap
 
-
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = F.handleSubmitValidate onSubmit F.validate validation
   where onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
         onSubmit fields = do
-          _ <- H.liftAff $ Ami.promptAdd { prompt: fields.prompt
-                                         , member_id: fields.member
-                                         , friend_id: fields.friend
-                                         , enabled: false
-                                         }
           state <- H.get
           let prompt = { prompt: fields.prompt
                        , member: fields.member
@@ -117,6 +109,12 @@ query = F.handleSubmitValidate onSubmit F.validate validation
                                          Just b  -> b
               promptMap' = M.insert prompt toggle state.promptMap
           H.modify_ _ { promptMap = promptMap' }
+          b <- H.liftAff $ Ami.promptAdd { prompt: fields.prompt
+                                         , member_id: fields.member
+                                         , friend_id: fields.friend
+                                         , enabled: false
+                                         }
+          pure unit
 
         validation :: { | Form F.FieldValidation }
         validation = { prompt: case _ of
@@ -137,7 +135,7 @@ render { context: { formActions, fields, actions}, promptMap } = do
           [ HH.div_ [ HE.fieldset_
                       (
                         [ HE.legend_ [ HH.text "properties" ] ]
-                        <> (inputCheckbox <$> tuples)
+                        <> (inputCheckbox promptMap <$> tuples)
                       )
                     ]
           , HH.div_ [ HH.label_ []
@@ -176,15 +174,20 @@ render { context: { formActions, fields, actions}, promptMap } = do
       idxPrompts :: Array Prompt -> Array (Tuple Int Prompt)
       idxPrompts prompts = zip (0..(length prompts)) prompts
 
-      inputCheckbox (Tuple index prompt) = HH.label [ HP.for (toString index) ]
-                                                    [ HH.input [ HP.type_ HP.InputCheckbox
-                                                               , HP.id (toString index)
-                                                               , HP.name "checked"
-                                                               , HP.value prompt.prompt
-                                                               , HP.checked false
-                                                               , HEV.onChecked \b -> (Put prompt b)
-                                                               ]
-                                                    , HH.text prompt.prompt
-                                                    ]
-                                           where toString :: Int -> String
-                                                 toString = Int.toStringAs Int.decimal
+      inputCheckbox promptMap (Tuple index prompt) =
+        HH.label [ HP.for (toString index) ]
+        [ HH.input [ HP.type_ HP.InputCheckbox
+                   , HP.id (toString index)
+                   , HP.name "checked"
+                   , HP.value prompt.prompt
+                   , HP.checked (checked prompt promptMap)
+                   , HEV.onChecked \b -> (Put prompt b)
+                   ]
+        , HH.text prompt.prompt
+        ]
+        where toString :: Int -> String
+              toString = Int.toStringAs Int.decimal
+              checked :: Prompt -> PromptMap -> Boolean
+              checked p pm = case M.lookup p pm of
+                Nothing -> false
+                Just b  -> b
