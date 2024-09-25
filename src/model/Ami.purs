@@ -77,3 +77,17 @@ promptAdd p = do
   case b of
     Left e  -> (H.liftEffect $ logShow e) *> pure false
     Right r -> pure r
+
+promptUpdate :: Prompt' -> Aff Boolean
+promptUpdate p = do
+  let url = baseUrl <> "/prompts/update"
+  res <- F.fetch url { method: F.POST
+                     , body: stringify (encodeJson p)
+                     , headers: { "Content-Type": "application/json" }
+                     }
+  json <- res.json
+  let js = unsafeFromForeign json
+      b = decodeJson js :: Either _ Boolean
+  case b of
+    Left e  -> (H.liftEffect $ logShow e) *> pure false
+    Right r -> pure r

@@ -89,6 +89,11 @@ action = do
       { context, promptMap } <- H.get
       let promptMap' = M.insert prompt bool promptMap
       H.modify_ _ { promptMap = promptMap' }
+      b <- H.liftAff $ Ami.promptUpdate { prompt: prompt.prompt
+                                        , member_id: prompt.member
+                                        , friend_id: prompt.friend
+                                        , enabled: bool
+                                        }
       H.liftEffect $ logShow promptMap'
     Receive context -> H.modify_ _ { context = context }
     Eval action'    -> F.eval action'
