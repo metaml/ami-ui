@@ -102,6 +102,11 @@ query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m
 query = F.handleSubmitValidate onSubmit F.validate validation
   where onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
         onSubmit fields = do
+          _ <- H.liftAff $ Ami.promptAdd { prompt: fields.prompt
+                                         , member_id: fields.member
+                                         , friend_id: fields.friend
+                                         , enabled: false
+                                         }
           state <- H.get
           let prompt = { prompt: fields.prompt
                        , member: fields.member

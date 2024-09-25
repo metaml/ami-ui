@@ -21,9 +21,12 @@ type Msg    = { content :: String, role :: String }
 type MsgReq = { messages :: Array Msg, stream :: Boolean }
 type MsgRes = { messages :: Array Msg, friend :: String }
 
+baseUrl :: String
+baseUrl = "http://localhost:8000/"
+
 talk :: MsgReq -> Aff MsgRes
 talk req = do
-  let url = "http://localhost:8000/talk"
+  let url = baseUrl <> "talk/"
   res <- F.fetch url { method: F.POST
                      , body: stringify (encodeJson req)
                      , headers: { "Content-Type": "application/json" }
@@ -48,7 +51,7 @@ prompts req = do
 
 prompts' :: PromptReq -> Aff (Array Prompt')
 prompts' req = do
-  let url = "http://localhost:8000/prompts" -- @todo: change to ec2 URL
+  let url = baseUrl <> "prompts/" -- @todo: change to ec2 URL
   ps <- F.fetch url { method: F.POST
                     , body: stringify (encodeJson req)
                     , headers: { "Content-Type": "application/json" }
@@ -60,3 +63,17 @@ prompts' req = do
   case res' of
     Left e   -> (H.liftEffect $ logShow e)  *> pure []
     Right ps -> (H.liftEffect $ logShow ps) *> pure ps
+
+promptAdd :: Prompt' -> Aff Boolean
+promptAdd p = do
+  let url = baseUrl <> "prompts/add/"
+  res <- F.fetch url { method: F.POST
+                     , body: stringify (encodeJson p)
+                     , headers: { "Content-Type": "application/json" }
+                     }
+  json <- res.json
+  let js = unsafeFromForeign json
+      b = decodeJson js :: Either _ Boolean
+  case b of
+    Left e  -> (H.liftEffect $ logShow e) *> pure false
+    Right r -> pure r
