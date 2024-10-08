@@ -5,6 +5,7 @@ import Ami as Ami
 import Data.Array (head)
 import Data.Const (Const)
 import Data.Either (Either(..))
+import Data.Foldable (foldr)
 import Data.Maybe (Maybe(..))
 import Effect.Class (class MonadEffect)
 import Effect.Aff (Aff)
@@ -117,23 +118,25 @@ query = do
 
 render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, messages } = do
-  -- let lines = intersperse HH.br_ $ map (\{ name, message } -> HH.text (name <> ": " <> message)) messages
-  let texts = (\{ name, message } -> HH.text (name <> ": " <> message)) <$> messages
-      container = HP.class_ (ClassName "container")
-      articles = (\text -> HH.article [ container ] [ text ]) <$> texts
+  let dialog = (\{ name, message } -> (name <> ": " <> message)) <$> messages
+      dialog' = foldr (\a b -> a <> "\n\n" <> b) "\n\n" dialog
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
-                    , HH.ul_ articles
+                    , HH.textarea [ HP.rows 13
+                                  , HP.readOnly true
+                                  , HP.value dialog'
+                                  ]
                     ]
           , HH.div_ [ HH.label_ []
-                    , HH.textarea [ -- HP.type_ HP.InputText
-                                    HEV.onValueInput actions.message.handleChange
+                    , HH.textarea [ HP.autofocus true
+                                  , HP.rows 3
+                                  , HEV.onValueInput actions.message.handleChange
                                   , HEV.onBlur actions.message.handleBlur
                                   , case fields.message.result of
                                       Nothing        -> HP.placeholder "message"
                                       Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
                                       Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
-                               ]
+                                  ]
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
