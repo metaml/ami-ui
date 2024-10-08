@@ -17,12 +17,13 @@ import Foreign (unsafeFromForeign)
 import Halogen as H
 import Undefined (undefined)
 
-type Msg    = { content :: String, role :: String }
+type Msg    = { content :: String, role :: String, member :: String, friend :: String }
 type MsgReq = { messages :: Array Msg, stream :: Boolean }
 type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
-baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
+-- baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
+baseUrl = "http://localhost:8000"
 
 talk :: MsgReq -> Aff MsgRes
 talk req = do
@@ -36,6 +37,23 @@ talk req = do
       res' = decodeJson js :: Either _ MsgRes
   case res' of
     Left _  -> pure { messages: [], friend: "Courtney" }
+    Right r -> pure r
+
+type MessageReq = { member :: String, friend :: String }
+type MessageRes = { name :: String, message :: String }
+
+messages :: MessageReq -> Aff (Array MessageRes)
+messages req = do
+  let url = baseUrl <> "/history"
+  res <- F.fetch url { method: F.POST
+                     , body: stringify (encodeJson req)
+                     , headers: { "Content-Type": "application/json" }
+                     }
+  json <- res.json
+  let js = unsafeFromForeign json
+      res' = decodeJson js :: Either _ (Array MessageRes)
+  case res' of
+    Left _  -> pure []
     Right r -> pure r
 
 type PromptReq = { member :: String, friend :: String }

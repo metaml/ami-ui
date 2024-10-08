@@ -1,7 +1,7 @@
 module Chat where
 
 import Prelude
-import Ami as A
+import Ami as Ami
 import Data.Array (head)
 import Data.Const (Const)
 import Data.Either (Either(..))
@@ -17,32 +17,43 @@ import Halogen.HTML.Events as HEV
 import Halogen.HTML.Properties as HP
 import Html as Html
 import Web.HTML.Common (ClassName(..))
+import Undefined (undefined)
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
-type Form f = ( name    :: f String String String
-              , message :: f String String String
+type Form f = ( message :: f String String String
+              , name    :: f String String String
               )           -- input  error  output
 
 type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action)) Unit Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
-data Action = Receive FormContext | Eval FormlessAction
+data Action = Initialize
+            | Receive FormContext
+            | Eval FormlessAction
 type FormInputs = { | Form F.FieldInput }
 
 type Query :: forall k. k -> Type
-type Query = Const Void -- forall k. k -> Type
+type Query = Const Void
 type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
 type Message = { | Form F.FieldOutput }
-type State = { context :: FormContext, messages :: Array Message }
+type State = { context :: FormContext
+             , messages :: Array Message
+             , member :: String
+             , friend :: String
+             }
 
 component :: _ _ _ Aff
 component = Html.mkComponent "chat" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } mempty
-       $ H.mkComponent { initialState: \ctx -> { context: ctx, messages: [] }
+       $ H.mkComponent { initialState: \ctx -> { context: ctx
+                                               , messages: []
+                                               , member: ""
+                                               , friend: "Courtney"
+                                               }
                        , render
                        , eval: H.mkEval $ H.defaultEval
                          { receive = Just <<< Receive
@@ -51,10 +62,14 @@ form = F.formless { liftAction: Eval } mempty
                          }
                        }
 
-action :: forall m. MonadEffect m
+action :: forall m. MonadAff m
           => Action
           -> H.HalogenM State Action () (F.FormOutput (Form F.FieldState) Output) m Unit
 action = case _ of
+           Initialize -> do
+             { context, messages, member, friend } <- H.get
+             messages <- H.liftAff (Ami.messages { member: member, friend: friend })
+             H.modify_ _ { context = context, messages = messages }
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
 
@@ -67,15 +82,17 @@ query = do
                                                       , name: fields.name
                                                       }
                                                     ]
+                    , member = fields.name
+                    , friend = "Courtney"
                     }
 
-        let msg :: A.Msg
-            msg = { content: fields.message, role: fields.name }
-            req :: A.MsgReq
+        let msg :: Ami.Msg
+            msg = { content: fields.message, role: "user", member: fields.name, friend: "Courtney" }
+            req :: Ami.MsgReq
             req = { messages: [ msg ], stream: false }
         H.liftEffect $ logShow fields
         H.liftEffect $ logShow msg
-        { messages, friend } :: A.MsgRes <- H.liftAff $ A.talk req
+        { messages, friend } :: Ami.MsgRes <- H.liftAff $ Ami.talk req
 
         let msg' = head messages
         case msg' of
@@ -109,13 +126,13 @@ render { context: { formActions, fields, actions}, messages } = do
                     , HH.ul_ articles
                     ]
           , HH.div_ [ HH.label_ []
-                    , HH.input [ HP.type_ HP.InputText
-                               , HEV.onValueInput actions.message.handleChange
-                               , HEV.onBlur actions.message.handleBlur
-                               , case fields.message.result of
-                                   Nothing        -> HP.placeholder "message"
-                                   Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
-                                   Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
+                    , HH.textarea [ -- HP.type_ HP.InputText
+                                    HEV.onValueInput actions.message.handleChange
+                                  , HEV.onBlur actions.message.handleBlur
+                                  , case fields.message.result of
+                                      Nothing        -> HP.placeholder "message"
+                                      Just (Left _)  -> HP.attr (HH.AttrName "aria-invalid") "true"
+                                      Just (Right _) -> HP.attr (HH.AttrName "aria-invalid") "false"
                                ]
                     ]
           , HH.div_ [ HH.label_ []
