@@ -22,7 +22,7 @@ type MsgReq = { messages :: Array Msg, stream :: Boolean }
 type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
--- baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
+--baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
 baseUrl = "http://localhost:8000"
 
 talk :: MsgReq -> Aff MsgRes
@@ -44,7 +44,7 @@ type MessageRes = { name :: String, message :: String }
 
 messages :: MessageReq -> Aff (Array MessageRes)
 messages req = do
-  let url = baseUrl <> "/history"
+  let url = baseUrl <> "/messages"
   res <- F.fetch url { method: F.POST
                      , body: stringify (encodeJson req)
                      , headers: { "Content-Type": "application/json" }
@@ -52,9 +52,10 @@ messages req = do
   json <- res.json
   let js = unsafeFromForeign json
       res' = decodeJson js :: Either _ (Array MessageRes)
-  case res' of
-    Left _  -> pure []
-    Right r -> pure r
+      r = case res' of
+            Left _  -> []
+            Right r -> r
+  pure r
 
 type PromptReq = { member :: String, friend :: String }
 type Prompt = { prompt :: String, member :: String, friend :: String, enabled :: Boolean }

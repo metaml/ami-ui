@@ -2,7 +2,7 @@ module Chat where
 
 import Prelude
 import Ami as Ami
-import Data.Array (head)
+import Data.Array (head, null)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
@@ -70,7 +70,10 @@ action = case _ of
            Initialize -> do
              { context, messages, member, friend } <- H.get
              messages <- H.liftAff (Ami.messages { member: member, friend: friend })
-             H.modify_ _ { context = context, messages = messages }
+             H.liftEffect $ logShow messages
+             H.liftEffect $ logShow member
+             H.liftEffect $ logShow friend
+             H.modify_ _ { context = context, messages = messages, member = member, friend = friend }
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
 
@@ -79,16 +82,21 @@ query = do
   let onSubmit :: { | Form F.FieldOutput } -> H.HalogenM _ _ _ _ _ Unit
       onSubmit fields = do
         state' <- H.get
-        H.modify_ _ { messages = state'.messages <> [ { message: fields.message
-                                                      , name: fields.name
-                                                      }
-                                                    ]
+        messages <- if null state'.messages
+                    then H.liftAff (Ami.messages { member: fields.name
+                                                 , friend: state'.friend
+                                                 }
+                                   )
+                    else pure state'.messages
+        H.liftEffect $ logShow messages
+        H.modify_ _ { messages = messages <> [ { message: fields.message
+                                               , name: fields.name
+                                               }
+                                             ]
                     , member = fields.name
-                    , friend = "Courtney"
                     }
-
         let msg :: Ami.Msg
-            msg = { content: fields.message, role: "user", member: fields.name, friend: "Courtney" }
+            msg = { content: fields.message, role: "user", member: fields.name, friend: state'.friend }
             req :: Ami.MsgReq
             req = { messages: [ msg ], stream: false }
         H.liftEffect $ logShow fields
@@ -117,7 +125,7 @@ query = do
   F.handleSubmitValidate onSubmit F.validate validation
 
 render :: State -> H.ComponentHTML Action () Aff
-render { context: { formActions, fields, actions}, messages } = do
+render { context: { formActions, fields, actions }, messages, member, friend } = do
   let dialog = (\{ name, message } -> (name <> ": " <> message)) <$> messages
       dialog' = foldr (\a b -> a <> "\n\n" <> b) "\n\n" dialog
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
