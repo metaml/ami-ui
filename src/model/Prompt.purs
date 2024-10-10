@@ -3,7 +3,7 @@ module Prompt where
 import Prelude
 import Ami as Ami
 import DOM.HTML.Indexed (HTMLinput(..))
-import Data.Array ((..), concat, length, zip)
+import Data.Array ((..), concat, filter, length, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
@@ -11,6 +11,7 @@ import Data.Int as Int
 import Data.Map as M
 import Data.Maybe (Maybe(..))
 import Data.Set (toUnfoldable) as S
+import Data.String (trim)
 import Data.Tuple (Tuple(..))
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
@@ -27,6 +28,9 @@ import Halogen.HTML.Properties as HP
 import Html as Html
 import PromptState as P
 import Undefined (undefined)
+import Web.Clipboard (clipboard, writeText)
+import Web.HTML (window)
+import Web.HTML.Window (navigator)
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( prompt  :: f String String String
@@ -38,6 +42,7 @@ type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
 data Action = Initialize
+            | Clipboard
             | Put Prompt Boolean
             | Receive FormContext
             | Eval FormlessAction
@@ -85,6 +90,17 @@ action = do
       prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
       let promptMap' = foldr insert M.empty prompts
       H.modify_ _ { promptMap = promptMap' }
+    Clipboard -> do
+      { context, promptMap } <- H.get
+      let ks = S.toUnfoldable $ M.keys promptMap
+          ps = filter (\k -> M.lookup k promptMap == Just true) ks
+          prompts = (\p -> p.prompt) <$> ps
+          prompts' = trim $ foldr (\p p' -> p <> "\n" <> p') "" prompts
+      cb <- H.liftEffect $ window >>= navigator >>= clipboard
+      case cb of
+        Nothing  -> H.liftEffect $ log "Nothing"
+        Just cb' -> H.liftEffect $ void $ writeText prompts' cb'
+      H.liftEffect $ log prompts'
     Put prompt bool -> do
       { context, promptMap } <- H.get
       let promptMap' = M.insert prompt bool promptMap
@@ -137,9 +153,11 @@ render :: State -> H.ComponentHTML Action () Aff
 render { context: { formActions, fields, actions}, promptMap } = do
   let tuples = idxPrompts (S.toUnfoldable (M.keys promptMap))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
-          [ HH.div_ [ HE.fieldset_
+          [ HH.div_ [ HH.button [ HEV.onClick \_ -> Clipboard ] [ HH.text "clipboard" ]
+                    ]
+          , HH.div_ [ HE.fieldset_
                       (
-                        [ HE.legend_ [ HH.text "properties" ] ]
+                        [ HE.legend_ [ ] ]
                         <> (inputCheckbox promptMap <$> tuples)
                       )
                     ]

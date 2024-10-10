@@ -21,8 +21,10 @@
                  , "ordered-collections"
                  , "prelude"
                  , "random"
+                 , "strings"
                  , "tuples"
                  , "undefined"
+                 , "web-clipboard"
                  , "web-html"
                  ]
 , packages = ./packages.dhall

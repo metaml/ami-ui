@@ -22,8 +22,8 @@ type MsgReq = { messages :: Array Msg, stream :: Boolean }
 type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
---baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
-baseUrl = "http://localhost:8000"
+baseUrl = "http://alb-1952262379.us-east-2.elb.amazonaws.com:8000"
+-- baseUrl = "http://localhost:8000"
 
 talk :: MsgReq -> Aff MsgRes
 talk req = do
