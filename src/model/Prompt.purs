@@ -28,7 +28,7 @@ import Halogen.HTML.Properties as HP
 import Html as Html
 import PromptState as P
 import Undefined (undefined)
-import Web.Clipboard (clipboard, writeText)
+import Web.Clipboard as C  -- (Clipboard, clipboard, writeText)
 import Web.HTML (window)
 import Web.HTML.Window (navigator)
 
@@ -58,6 +58,7 @@ type PromptMap = M.Map Prompt Boolean
 
 type State = { context   :: FormContext
              , promptMap :: PromptMap
+             , clipboard :: C.Clipboard
              }
 
 -- type Slots = ( put :: P.Slot PromptMap )
@@ -67,7 +68,7 @@ component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } initialForm
-       $ H.mkComponent { initialState: \context -> { context: context, promptMap: M.empty }
+       $ H.mkComponent { initialState: \context -> { context: context, promptMap: M.empty, clipboard: undefined }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive      = Just <<< Receive
                                                         , initialize   = Just Initialize
@@ -75,9 +76,8 @@ form = F.formless { liftAction: Eval } initialForm
                                                         , handleQuery  = query
                                                         }
                        }
-       where initialForm :: { | Form F.FieldInput }
-             initialForm = { prompt: "", member: "", friend: "" }
-
+  where initialForm :: { | Form F.FieldInput }
+        initialForm = { prompt: "", member: "", friend: "Courtney" }
 
 -- slots can equal ()
 action :: forall slots m. MonadAff m
@@ -86,21 +86,20 @@ action :: forall slots m. MonadAff m
 action = do
   case _ of
     Initialize -> do
-      { context, promptMap } <- H.get
+      { context, promptMap, clipboard } <- H.get
       prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
       let promptMap' = foldr insert M.empty prompts
-      H.modify_ _ { promptMap = promptMap' }
+      clipboard' <- H.liftEffect $ window >>= navigator >>= C.clipboard
+      case clipboard' of
+         Nothing        -> H.modify_ _ { context = context, promptMap = promptMap' }
+         Just clipboard -> H.modify_ _ { context = context, promptMap = promptMap', clipboard = clipboard }
     Clipboard -> do
-      { context, promptMap } <- H.get
+      { context, promptMap, clipboard } <- H.get
       let ks = S.toUnfoldable $ M.keys promptMap
           ps = filter (\k -> M.lookup k promptMap == Just true) ks
           prompts = (\p -> p.prompt) <$> ps
           prompts' = trim $ foldr (\p p' -> p <> "\n" <> p') "" prompts
-      cb <- H.liftEffect $ window >>= navigator >>= clipboard
-      case cb of
-        Nothing  -> H.liftEffect $ log "Nothing"
-        Just cb' -> H.liftEffect $ void $ writeText prompts' cb'
-      H.liftEffect $ log prompts'
+      H.liftEffect $ void $ C.writeText prompts' clipboard
     Put prompt bool -> do
       { context, promptMap } <- H.get
       let promptMap' = M.insert prompt bool promptMap
