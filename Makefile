@@ -26,14 +26,17 @@ update: ## update packages
 
 # call make run first
 install-dev: bundle ## copy index.[html, js] to ami/static
-	rsync --verbose \
-	  --archive \
-	  --delete \
-	  --compress \
-	  --copy-links \
-	  --keep-dirlinks \
-	  --progress \
-	  static/ ../ami/static/
+	cp -p index.js ./static/.
+	cp -p ./static/index.js ../ami/static/.
+
+.PHONY: static
+static: ## creat the static dir
+	rsync \
+	--archive \
+	--delete \
+	--exclude=./index.js \
+	--verbose \
+	../ami/static/ ./static/
 
 clean: ## clean
 	find . -name \*~ -or -name \#\*\# | xargs rm -f
