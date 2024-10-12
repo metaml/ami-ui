@@ -12,4 +12,5 @@
 /npm/
 /output/
 /tmp/
+static/**
 index.js
