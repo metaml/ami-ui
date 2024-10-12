@@ -3,7 +3,7 @@ module Prompt where
 import Prelude
 import Ami as Ami
 import DOM.HTML.Indexed (HTMLinput(..))
-import Data.Array ((..), concat, filter, length, zip)
+import Data.Array ((..), (!!), concat, filter, length, singleton, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
@@ -30,7 +30,7 @@ import PromptState as P
 import Undefined (undefined)
 import Web.Clipboard as C  -- (Clipboard, clipboard, writeText)
 import Web.HTML (window)
-import Web.HTML.Window (navigator)
+import Web.HTML.Window (alert, navigator)
 
 type Form :: (Type -> Type -> Type -> Type) -> Row Type
 type Form f = ( prompt  :: f String String String
@@ -58,7 +58,7 @@ type PromptMap = M.Map Prompt Boolean
 
 type State = { context   :: FormContext
              , promptMap :: PromptMap
-             , clipboard :: C.Clipboard
+             , clipboard :: Maybe C.Clipboard --cheap Maybe: Maybe C.Clipboard requires an Clipboard Eq instance
              }
 
 -- type Slots = ( put :: P.Slot PromptMap )
@@ -68,7 +68,8 @@ component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } initialForm
-       $ H.mkComponent { initialState: \context -> { context: context, promptMap: M.empty, clipboard: undefined }
+       $ H.mkComponent { initialState: \ctx-> { context: ctx, promptMap: M.empty, clipboard: Nothing
+                                              }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive      = Just <<< Receive
                                                         , initialize   = Just Initialize
@@ -86,20 +87,19 @@ action :: forall slots m. MonadAff m
 action = do
   case _ of
     Initialize -> do
-      { context, promptMap, clipboard } <- H.get
       prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
       let promptMap' = foldr insert M.empty prompts
       clipboard' <- H.liftEffect $ window >>= navigator >>= C.clipboard
-      case clipboard' of
-         Nothing        -> H.modify_ _ { context = context, promptMap = promptMap' }
-         Just clipboard -> H.modify_ _ { context = context, promptMap = promptMap', clipboard = clipboard }
+      H.modify_ _ { promptMap = promptMap', clipboard = clipboard' }
     Clipboard -> do
       { context, promptMap, clipboard } <- H.get
       let ks = S.toUnfoldable $ M.keys promptMap
           ps = filter (\k -> M.lookup k promptMap == Just true) ks
           prompts = (\p -> p.prompt) <$> ps
           prompts' = trim $ foldr (\p p' -> p <> "\n" <> p') "" prompts
-      H.liftEffect $ void $ C.writeText prompts' clipboard
+      case clipboard of
+         Nothing   -> H.liftEffect $ window >>= alert "clipboard is null: https or localhost required"
+         Just clip -> H.liftEffect $ void $ C.writeText prompts' clip
     Put prompt bool -> do
       { context, promptMap } <- H.get
       let promptMap' = M.insert prompt bool promptMap
@@ -172,6 +172,7 @@ render { context: { formActions, fields, actions}, promptMap } = do
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
+                               , HP.value "system"
                                , HEV.onValueInput actions.member.handleChange
                                , HEV.onBlur actions.member.handleBlur
                                , case fields.member.result of
@@ -182,6 +183,7 @@ render { context: { formActions, fields, actions}, promptMap } = do
                     ]
           , HH.div_ [ HH.label_ []
                     , HH.input [ HP.type_ HP.InputText
+                               , HP.value "system"
                                , HEV.onValueInput actions.friend.handleChange
                                , HEV.onBlur actions.friend.handleBlur
                                , case fields.friend.result of
