@@ -7,6 +7,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Chat as Chat
 import Home as Home
+import Letta as Letta
 import Prompt as Prompt
 import Foreign.Object as Object
 import Halogen.Aff as HA
@@ -21,5 +22,6 @@ main = HA.runHalogenAff do
   where stories :: Stories Aff
         stories = Object.fromFoldable [ Tuple ""       $ proxy Home.component
                                       , Tuple "chat"   $ proxy Chat.component
+                                      , Tuple "letta"  $ proxy Letta.component
                                       , Tuple "prompt" $ proxy Prompt.component
                                       ]

@@ -39,6 +39,24 @@ talk req = do
     Left _  -> pure { messages: [], friend: "Courtney" }
     Right r -> pure r
 
+lettaBaseUrl :: String
+--lettaBaseUrl = "https://alb-64c71258f6c9e59f.elb.us-east-2.amazonaws.com:8000/letta"
+lettaBaseUrl = "https://localhost:8000/letta"
+
+lettaTalk :: MsgReq -> Aff MsgRes
+lettaTalk req = do
+  let url = lettaBaseUrl <> "/talk"
+  res <- F.fetch url { method: F.POST
+                     , body: stringify (encodeJson req)
+                     , headers: { "Content-Type": "application/json" }
+                     }
+  json <- res.json
+  let js = unsafeFromForeign json
+      res' = decodeJson js :: Either _ MsgRes
+  case res' of
+    Left _  -> pure { messages: [], friend: "Courtney" }
+    Right r -> pure r
+
 type MessageReq = { member :: String, friend :: String }
 type MessageRes = { name :: String, message :: String }
 
