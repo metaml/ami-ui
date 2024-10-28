@@ -23,7 +23,10 @@ type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
 baseUrl = "https://alb-64c71258f6c9e59f.elb.us-east-2.amazonaws.com:8000"
---baseUrl = "https://localhost:8000"
+-- baseUrl = "https://localhost:8000"
+
+lettaBaseUrl :: String
+lettaBaseUrl = baseUrl <> "/letta"
 
 talk :: MsgReq -> Aff MsgRes
 talk req = do
@@ -38,10 +41,6 @@ talk req = do
   case res' of
     Left _  -> pure { messages: [], friend: "Courtney" }
     Right r -> pure r
-
-lettaBaseUrl :: String
---lettaBaseUrl = "https://alb-64c71258f6c9e59f.elb.us-east-2.amazonaws.com:8000/letta"
-lettaBaseUrl = "https://localhost:8000/letta"
 
 lettaTalk :: MsgReq -> Aff MsgRes
 lettaTalk req = do
