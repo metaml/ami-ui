@@ -2,11 +2,15 @@ module Chat where
 
 import Prelude
 import Ami as Ami
-import Data.Array (head, null)
+import Data.Array ((..), head, length, null, zip)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
+import Data.Int as Int
+import Data.Map as M
 import Data.Maybe (Maybe(..))
+import Data.Set as S
+import Data.Tuple (Tuple(..))
 import Effect.Class (class MonadEffect)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff)
@@ -15,6 +19,7 @@ import Formless as F
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HEV
+import Halogen.HTML.Elements as HE
 import Halogen.HTML.Properties as HP
 import Html as Html
 import Web.HTML.Common (ClassName(..))
@@ -29,6 +34,7 @@ type FormContext = F.FormContext (Form F.FieldState) (Form (F.FieldAction Action
 type FormlessAction = F.FormlessAction (Form F.FieldState)
 
 data Action = Initialize
+            | Put Ami.Prompt Boolean
             | Receive FormContext
             | Eval FormlessAction
 type FormInputs = { | Form F.FieldInput }
@@ -38,11 +44,14 @@ type Query = Const Void
 type Input = Unit -- { | Form F.FieldInput }
 type Output = { | Form F.FieldOutput }
 
+type PromptMap = M.Map Ami.Prompt Boolean
+
 type Message = { | Form F.FieldOutput }
 type State = { context :: FormContext
              , messages :: Array Message
              , member :: String
              , friend :: String
+             , promptMap :: PromptMap
              }
 
 component :: _ _ _ Aff
@@ -54,13 +63,14 @@ form = F.formless { liftAction: Eval } mempty
                                                , messages: []
                                                , member: ""
                                                , friend: "Courtney"
+                                               , promptMap: M.empty
                                                }
                        , render
-                       , eval: H.mkEval $ H.defaultEval
-                         { receive = Just <<< Receive
-                         , handleAction = action
-                         , handleQuery  = query
-                         }
+                       , eval: H.mkEval $ H.defaultEval { receive = Just <<< Receive
+                                                        , initialize = Just Initialize
+                                                        , handleAction = action
+                                                        , handleQuery  = query
+                                                        }
                        }
 
 action :: forall m. MonadAff m
@@ -68,14 +78,33 @@ action :: forall m. MonadAff m
           -> H.HalogenM State Action () (F.FormOutput (Form F.FieldState) Output) m Unit
 action = case _ of
            Initialize -> do
-             { context, messages, member, friend } <- H.get
+             { context, messages, member, friend, promptMap } <- H.get
              messages <- H.liftAff (Ami.messages { member: member, friend: friend })
+             prompts <- H.liftAff (Ami.prompts { member: "system", friend: "system" })
+             let promptMap' = foldr insert M.empty prompts
+             H.modify_ _ { context = context, messages = messages
+                         , member = member
+                         , friend = friend
+                         , promptMap = promptMap'
+                         }
              H.liftEffect $ logShow messages
              H.liftEffect $ logShow member
              H.liftEffect $ logShow friend
-             H.modify_ _ { context = context, messages = messages, member = member, friend = friend }
+             H.liftEffect $ logShow promptMap'
+           Put prompt bool -> do
+             { context, promptMap } <- H.get
+             let promptMap' = M.insert prompt bool promptMap
+             H.modify_ _ { promptMap = promptMap' }
+             b <- H.liftAff $ Ami.promptUpdate { prompt: prompt.prompt
+                                               , member_id: prompt.member
+                                               , friend_id: prompt.friend
+                                               , enabled: bool
+                                               }
+             H.liftEffect $ logShow promptMap'
            Receive context -> H.modify_ _ { context = context }
            Eval action'    -> F.eval action'
+        where insert :: Ami.Prompt -> PromptMap -> PromptMap
+              insert p pmap = M.insert p p.enabled pmap
 
 query :: forall a m. MonadAff m => F.FormQuery _ _ _ _ a -> H.HalogenM _ _ _ _ m (Maybe a)
 query = do
@@ -99,10 +128,9 @@ query = do
             msg = { content: fields.message, role: "user", member: fields.name, friend: state'.friend }
             req :: Ami.MsgReq
             req = { messages: [ msg ], stream: false }
+        { messages, friend } :: Ami.MsgRes <- H.liftAff $ Ami.talk req
         H.liftEffect $ logShow fields
         H.liftEffect $ logShow msg
-        { messages, friend } :: Ami.MsgRes <- H.liftAff $ Ami.talk req
-
         let msg' = head messages
         case msg' of
           Nothing  -> do
@@ -125,9 +153,10 @@ query = do
   F.handleSubmitValidate onSubmit F.validate validation
 
 render :: State -> H.ComponentHTML Action () Aff
-render { context: { formActions, fields, actions }, messages, member, friend } = do
+render { context: { formActions, fields, actions }, messages, member, friend, promptMap } = do
   let dialog = (\{ name, message } -> (name <> ": " <> message)) <$> messages
       dialog' = foldr (\a b -> a <> "\n\n" <> b) "\n\n" dialog
+      tuples = idxPrompts (S.toUnfoldable (M.keys promptMap))
   HH.form [ HEV.onSubmit formActions.handleSubmit ]
           [ HH.div_ [ HH.label_ []
                     , HH.textarea [ HP.rows 13
@@ -157,4 +186,34 @@ render { context: { formActions, fields, actions }, messages, member, friend } =
                                ]
                     ]
           , HH.button [ HP.type_ HP.ButtonSubmit ] [ HH.text "Submit" ]
+          , HH.div_ [ HE.fieldset_
+                      (
+                        [ HE.legend_ [] ]
+                        <> (inputCheckbox promptMap <$> tuples)
+                      )
+                    ]
           ]
+  where
+    idxPrompts :: Array Ami.Prompt -> Array (Tuple Int Ami.Prompt)
+    idxPrompts prompts = zip (0..(length prompts)) prompts
+
+    inputCheckbox :: M.Map Ami.Prompt Boolean
+                     -> Tuple Int Ami.Prompt
+                     -> HH.HTML (_ Aff Action) Action
+    inputCheckbox promptMap (Tuple index prompt) =
+      HH.label [ HP.for (toString index) ]
+      [ HH.input [ HP.type_ HP.InputCheckbox
+                 , HP.id (toString index)
+                 , HP.name "checked"
+                 , HP.value prompt.prompt
+                 , HP.checked (checked prompt promptMap)
+                 , HEV.onChecked \b -> (Put prompt b)
+                 ]
+      , HH.text prompt.prompt
+      ]
+      where toString :: Int -> String
+            toString = Int.toStringAs Int.decimal
+            checked :: Ami.Prompt -> PromptMap -> Boolean
+            checked p pm = case M.lookup p pm of
+              Nothing -> false
+              Just b  -> b

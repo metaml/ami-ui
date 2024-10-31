@@ -68,8 +68,7 @@ component = Html.mkComponent "prompt" "" form
 
 form :: forall query. H.Component query Input Output Aff
 form = F.formless { liftAction: Eval } initialForm
-       $ H.mkComponent { initialState: \ctx-> { context: ctx, promptMap: M.empty, clipboard: Nothing
-                                              }
+       $ H.mkComponent { initialState: \ctx-> { context: ctx, promptMap: M.empty, clipboard: Nothing }
                        , render
                        , eval: H.mkEval $ H.defaultEval { receive      = Just <<< Receive
                                                         , initialize   = Just Initialize
@@ -78,7 +77,7 @@ form = F.formless { liftAction: Eval } initialForm
                                                         }
                        }
   where initialForm :: { | Form F.FieldInput }
-        initialForm = { prompt: "", member: "", friend: "Courtney" }
+        initialForm = { prompt: "", member: "system", friend: "system" }
 
 -- slots can equal ()
 action :: forall slots m. MonadAff m

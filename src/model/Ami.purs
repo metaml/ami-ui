@@ -23,6 +23,7 @@ type MsgRes = { messages :: Array Msg, friend :: String }
 
 baseUrl :: String
 baseUrl = "https://alb-64c71258f6c9e59f.elb.us-east-2.amazonaws.com:8000"
+-- @todo: switch baseUrl based on dev/prod context
 -- baseUrl = "https://localhost:8000"
 
 lettaBaseUrl :: String
